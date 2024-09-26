@@ -147,7 +147,7 @@
                             }
                           </div>
 
-                            <a href="@("https://lit-protocol.calderaexplorer.xyz/address/"  +data.StakerAddress)" style="text-decoration:none" target="_blank" >@data.StakerAddress</a>                        
+                            <a href="@(explorerUrl +data.StakerAddress)" style="text-decoration:none" target="_blank" >@data.StakerAddress</a>                        
                         </Template>
                     </RadzenDataGridColumn>    
                 </Columns>
@@ -162,7 +162,7 @@
                     <RadzenDataGridColumn TItem="Services.Metrics.Models.Validator" Title="Next Nodes" Width="100%" >
                         <Template Context="data">
                             Node #@data.NodeName : @data.NodeSocketAddress <br/>
-                            <a href="@("https://lit-protocol.calderaexplorer.xyz/address/"  +data.NodeAddress)" style="text-decoration:none" target="_blank" >@data.NodeAddress</a>                        
+                            <a href="@(explorerUrl +data.StakerAddress)" style="text-decoration:none" target="_blank" >@data.StakerAddress</a>                        
                         </Template>
                     </RadzenDataGridColumn>    
                 </Columns>
@@ -180,6 +180,13 @@
           </div>
         </div> 
 
+    <p></p>
+
+        <div class="row">
+          <div class="col">            
+            <NodeView.Components.EpochDetails epoch_return_value="@epoch_return_value" />
+          </div>
+        </div>
 
   </div>
 
@@ -189,6 +196,7 @@
 
 
 @code {
+    private string explorerUrl = "";
     private string fromBlock { get; set; } = "0";
     private string toBlock { get; set; } = "9999999";
     private string network_state { get; set; } = "";
@@ -202,6 +210,7 @@
     private StakingService? stakingService = null;
     private Nethereum.Contracts.ContractBuilder? contractBuilder = null;
     public LitContracts.Staking.ContractDefinition.Config? config_return_value { get; set;}
+    public LitContracts.Staking.ContractDefinition.Epoch? epoch_return_value { get; set; }
 
 
     private (string, string) get_description(String input , string? isError) {
@@ -240,6 +249,7 @@
         var resolver = new Resolver(localStorage);
         stakingService = await resolver.GetStakingService();
         contractBuilder = LitContracts.RawABI.get_staking_contract_abi(stakingService.ContractHandler.ContractAddress);       
+        explorerUrl = await localStorage.GetItemAsync<string>("explorerUrl");
         await LoadHistory();
     }
 
@@ -289,7 +299,7 @@
         @* epoch_length = epochOutput.ReturnValue1.EpochLength;
         epoch_end_time = epochOutput.ReturnValue1.EndTime; *@
 
-
+        @* Getting config *@
         try {
             var config_call = await stakingService.ConfigQueryAsync(historic_block);            
             if (config_call == null)
@@ -300,8 +310,16 @@
             Console.WriteLine(e.Message);
         }
 
-
-
+        @* Getting epoch details *@
+        try {
+          var get_epoch_call = await stakingService.EpochQueryAsync(historic_block);
+          if (get_epoch_call == null)
+              return;
+          epoch_return_value = get_epoch_call.ReturnValue1;
+        }
+        catch (Exception e) {
+            Console.WriteLine(e.Message);
+        }
 
         try  {
           var v = await stakingService.GetValidatorsStructsInCurrentEpochQueryAsync(historic_block);
